@@ -1,8 +1,22 @@
 # Extract similar values from html
 
-This python class parse **html string** and finding tags with values similar to given keywords.
-Return list of strings.
-requered installation of BeautifulSoup library.
+This python class parse ** html string ** and finding tags with values similar to given keywords.
+
+For example in html exists list, table or other DOM structure:
+
+<ul>
+<li>Apple</li>
+<li>Orange</li>
+<li>Kiwi</li>
+<li>Pineapple</li>
+.....
+</ul>
+
+Known example keywords is ['Apple','Orange'].
+Then function get_items_from_html will return values in neighboring tag <li>, except values exists in keywords: ['Kiwi','Pineapple',...]
+
+
+required installation of BeautifulSoup library.
     
     
 
