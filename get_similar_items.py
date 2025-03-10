@@ -95,7 +95,11 @@ class GetSimilarItems:
         """
         self.max_length=max_length
     
-
+    def sanitize_string(self, value):
+        value=value.strip()
+        if value[len(value)-1:] in [',',':','.','!']:
+            value=value[:len(value)-1]        
+        return value
 
     def __is_new_record(self, name):  
         """
@@ -103,11 +107,12 @@ class GetSimilarItems:
         name:str
         return Boolean
         """
+        name=self.sanitize_string(name)
         keywords=self.keywords
         found_items=[e.lower() for e in self.found_items]
 
        
-        name=name.lower().strip()
+        name=name.lower()
         if name in self.changes_map:
             name=self.changes_map[name] 
            
@@ -210,29 +215,30 @@ class GetSimilarItems:
             return None
             """ 
             broken=False              
+            value=self.sanitize_string(e.text)
             for we in self.char_exceptions:              
-                if e.text.lower().find(we)>-1:
+                if value.lower().find(we)>-1:
                     broken=True
             if broken==True:
                  return None
             
-            if self.debugText is not None and e.text==self.debugText:
+            if self.debugText is not None and value==self.debugText:
                 print(e,place)
                 exit()
             
             if len(self.word_exceptions)>0:
 
-                words=e.text.lower().split(' ')
+                words=value.lower().split(' ')
                 words=[w.replace(':','').replace('.','').replace(',','').replace(';','').replace('#','').replace('-','') for w in words]                               
                 words.sort()
                 changedWords=list(set(words)-set(self.word_exceptions))
                 changedWords.sort()                
                 if changedWords==words:                    
-                    self.found_items.append(e.text)
+                    self.found_items.append(value)
                 
                 return None
                 
-            self.found_items.append(e.text)
+            self.found_items.append(value)
        
         def __filter_via_examples(elements, found=True):
             """
