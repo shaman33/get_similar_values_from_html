@@ -1,23 +1,43 @@
 # Extract similar values from html
 
-This python class parse **html string** and finding tags with values similar to given  **keywords**.<br>
-Return list of strings.<br>
-requered installation of BeautifulSoup library.<br><br>
+This python class parse **html string** and finding tags with values similar to given keywords.
+Return list of strings.
+requered installation of BeautifulSoup library.
+    
+    
 
-**Usage:**<br><br><br>
-**from get_similar_items import GetSimilarItems**<br><br>
-**parse_engine=GetSimilarItems(30)** set percent of sensetivity, list will be collected only if minimum 30% found in keywords<br><br>
-
-
-**parse_engine.set_changes_map({'value to replace':'new value' })** - optional: in case replacement of value required<br><br>
-**parse_engine.set_noise_words(['fruit'])** - optional: if required to try variant with out noise word. For example for "Apple fruit" script will check variants "Apple fruit" and "Apple"<br><br>
-**parse_engine.set_char_exceptions(['#','@','$'])** - optional: reject if one of char_exeption found in string<br><br>
-**parse_engine.set_word_exceptions(['name'])** - optional: reject if one of words from word_exceptions found in words of value <br><br>
-**parse_engine.set_max_length(50)**  - optional: reject values with length less then max_length, 0 - not rejecting<br><br>
-
-**#parse_engine.set_debug_text('orange')** - optional: debug for entering specified value<br><br>
+Usage:
+    
 
 
-**parse_engine.set_keywords(['apple','banana','kiwi])** - required: list of keywords to search in html. <br><br>
-**items=parse_engine.get_items_from_html(html)** html - string , returns list of strings<br><br>
-**print(set(items))**<br>
+from get_similar_items import GetSimilarItems
+
+
+parse_engine=GetSimilarItems(30) -  set percent of sensetivity, list will be collected only if minimum 30% found in keywords
+
+
+parse_engine.set_changes_map({ 'value to replace': 'new value' }) - optional: in case replacement of value required
+
+
+parse_engine.set_noise_words(['fruit']) - optional: if required to try variant with out noise word.For example for "Apple fruit" script will check variants "Apple fruit" and "Apple"
+    
+    
+parse_engine.set_char_exceptions(['#', '@', '$']) - optional: reject if one of char_exeption found in string
+    
+    
+parse_engine.set_word_exceptions(['name']) - optional: reject if one of words from word_exceptions found in words of value
+    
+    
+parse_engine.set_max_length(50)**  - optional: reject values with length less then max_length, 0 - not rejecting
+
+
+#parse_engine.set_debug_text('orange') - optional: debug for entering specified value
+
+
+parse_engine.set_keywords(['apple', 'banana', 'kiwi']) - required: list of keywords to search in html. 
+    
+    
+items=parse_engine.get_items_from_html(html)   html - string, returns list of strings
+    
+        
+print(set(items))
