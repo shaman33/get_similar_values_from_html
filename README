@@ -21,5 +21,3 @@ requered installation of BeautifulSoup library.<br><br>
 **parse_engine.set_keywords(['apple','banana','kiwi])** - required: list of keywords to search in html. <br><br>
 **items=parse_engine.get_items_from_html(html)** html - string , returns list of strings<br><br>
 **print(set(items))**<br>
-
-
