@@ -16,7 +16,7 @@ parse_engine.set_max_length(50)
 
 #parse_engine.set_debug_text('orange')
 
-parse_engine.set_keywords(['apple','banana','kiwi])
+parse_engine.set_keywords(['apple','banana','kiwi'])
 items=parse_engine.get_items_from_html(html)     
 print(set(items))
 
@@ -25,6 +25,11 @@ print(set(items))
 class GetSimilarItems:
     debugText=None
     max_length=0
+    changes_map={}
+    keywords=[]
+    noise_words=[]
+    char_exceptions=[]
+    word_exceptions=[]
 
     def __init__(self, sensetivePercent=30):
               
@@ -360,4 +365,4 @@ class GetSimilarItems:
                 for it in __filter_via_examples(found,False):                       
                     __validate_append(it,3)
             
-        return self.found_items                 
+        return set(self.found_items)
