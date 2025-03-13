@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup
+from difflib import SequenceMatcher
 """
 Extract similar to given keywords items from html.
 
@@ -30,7 +31,8 @@ class GetSimilarItems:
     noise_words=[]
     char_exceptions=[]
     word_exceptions=[]
-
+    counter=0
+    result=[]
     def __init__(self, sensetivePercent=30):
               
         self.sensetivePercent=sensetivePercent
@@ -96,60 +98,64 @@ class GetSimilarItems:
         self.max_length=max_length
     
     def sanitize_string(self, value):
+        """
+            prepare value for saving
+            value:str
+            return value:str
+        """
         value=value.strip()
+        # drop last point...
         if value[len(value)-1:] in [',',':','.','!']:
             value=value[:len(value)-1]        
         return value
 
     def __is_new_record(self, name):  
         """
-        Detect if value exists in any variations in keywords list of already collected to found_items
+        Detect if value exists in any variations in keywords list
         name:str
         return Boolean
         """
-        name=self.sanitize_string(name)
+        name=self.sanitize_string(name.lower())
         keywords=self.keywords
-        found_items=[e.lower() for e in self.found_items]
-
-       
-        name=name.lower()
+        #@found_items=[e.lower() for e in self.found_items]
+             
         if name in self.changes_map:
             name=self.changes_map[name] 
-           
-        if name in keywords or name in found_items:
+        if name in keywords:
             return False
+        #if name in keywords or name in found_items:
+        #    return False
 
-       
         
         if len(self.noise_words)>0:
             for nw in self.noise_words:              
                 if name.find(nw)>-1:                                        
                     name1=name.replace(nw,'').strip()                           
                    
-                    if name1 in keywords or name1 in found_items:                     
+                    if name1 in keywords:                     
                         return False
                         
                     if name1[len(name1)-1:]!='s':
                         name1=name1+'s'
-                        if name1 in keywords or name1 in found_items:
+                        if name1 in keywords:
                             return False     
                                                                    
         if name.find('(')>-1:
             name2=name[0:name.find('(')].strip()
-            if name2 in keywords or name2 in found_items:
+            if name2 in keywords:
                 return False      
         
         ### Add s to end of world
         if name[len(name)-1:]!='s':            
             name3=name+'s'
-            if name3 in keywords or name3 in found_items:
+            if name3 in keywords:
                 return False
         else:
             ### drop s to end of world
             name4=name[0:len(name)-1]
-            if name4 in keywords or name4 in found_items:
+            if name4 in keywords:
                 return False
-        
+            
         return True
     
 
@@ -163,7 +169,8 @@ class GetSimilarItems:
 
         if tag.name in ['html','head','meta','link','script','title','style','noscript','img','body','header','form','table','tr']:
             return False
-        text=tag.text.lower().strip()
+         
+        text=self.sanitize_string(tag.text.lower())
         
         if len(text)==0:
             return False
@@ -171,21 +178,24 @@ class GetSimilarItems:
         if self.max_length > 0:
             if len(text)>self.max_length:
                 return False
+        
+        for we in self.char_exceptions:              
+            if text.find(we)>-1:
+                return False
+        if len(self.word_exceptions)>0:
             
-        return self.__is_new_record(text)==False
+            words=text.replace(':',' ').replace('.',' ').replace(',',' ').replace(';',' ').replace('#',' ').replace('-',' ').replace('\n',' ').replace('\t',' ').split(' ')
+            words=[w for w in words if w!='']                        
+            words.sort()
+            changedWords=list(set(words)-set(self.word_exceptions))
+            changedWords.sort()                                
+            if changedWords!=words:                                                            
+               return False
+          
+        return text in self.keywords
+
                       
-    
-    def get_items_from_html(self, html: str):
-        """
-        Get similar items from html string via self.examples
-        return list
-        """
-        
-        soup = BeautifulSoup(html, features="html.parser")
-       
-        
-      
-        def __highest_index_table(trs):
+    def __highest_index_table(self, trs):
             """
             trs: buityfullsoup::tag TRs of table
             return highestIndex:int  - index of TD where found maximum coincidences
@@ -204,9 +214,19 @@ class GetSimilarItems:
             highestIndex=list(indexRange.values()).index(maxValue)   
 
             return highestIndex
+    
+    def get_items_from_html(self, html: str):
+        """
+        Get similar items from html string via self.examples
+        return list
+        """
+        
+      
+        soup = BeautifulSoup(html, features="html5lib")
+        
         
 
-        def __validate_append(e, place):
+        def __validate_append(text, place):
             """
             found_items:list which collecting similar items in case its not excepted by char_exceptions or word_exception
             e : buityfullsoup::tag of checking item
@@ -214,69 +234,68 @@ class GetSimilarItems:
             originalText: string - used for debugging
             return None
             """ 
+            
             broken=False              
-            value=self.sanitize_string(e.text)
+            value=self.sanitize_string(text)
+          
             for we in self.char_exceptions:              
                 if value.lower().find(we)>-1:
                     broken=True
             if broken==True:
                  return None
             
+           
+            if value in self.found_items or strip_noise(value) in self.found_items:
+                return None
             if self.debugText is not None and value==self.debugText:
-                print(e,place)
+                print(text,value,place)
                 exit()
-            
             if len(self.word_exceptions)>0:
-
-                words=value.lower().split(' ')
-                words=[w.replace(':','').replace('.','').replace(',','').replace(';','').replace('#','').replace('-','') for w in words]                               
+                
+                words=value.lower().replace(':',' ').replace('.',' ').replace(',',' ').replace(';',' ').replace('#',' ').replace('-',' ').replace('\n',' ').replace('\t',' ').split(' ')
+                words=[w for w in words if w!='']                            
                 words.sort()
                 changedWords=list(set(words)-set(self.word_exceptions))
-                changedWords.sort()                
-                if changedWords==words:                    
-                    self.found_items.append(value)
-                
+                changedWords.sort()                                
+                if changedWords==words:   
+                                                                    
+                    self.found_items.append(value)                
                 return None
-                
+                                     
             self.found_items.append(value)
-       
-        def __filter_via_examples(elements, found=True):
-            """
-            Filter elements via self.exaples
-            elements: buityfullsoup list
-            found: True - exists in examples, False not in examples
-            return filtered:buityfullsoup list
-            """
-            if found==True:
-                filtered = [x for x in elements if self.__is_new_record(x.text)==False]                      
-            else: 
-                filtered = [x for x in elements if self.__is_new_record(x.text)]                      
-            return filtered
-        
-        def __find_rich_parent(e, getParent=False):
-            """
-            Recursive search children contains in examples
-            e: buityfullsoup:list
-            return children :buityfullsoup::list
-            """
-            if e.parent==None or e.parent.name=='body':
-                return None
-            children=e.parent.find_all(e.name)
-            found_len=len(__filter_via_examples(children,True))
-            percent=found_len*100/len(children)
-           
-                                            
-            if percent > self.sensetivePercent:
-                if getParent==True:
-                    
-                    return e.parent
-                else:                    
-                    return children
-            else: 
-                return __find_rich_parent(e.parent, getParent)
-            
 
+        def strip_noise(text):
+            if len(self.noise_words)>0:
+                for nw in self.noise_words:                
+                    if text.find(nw)>-1:
+                        text=text.replace(nw,'').strip()
+            return text
+
+        def is_text_in_keywords(text):
+            """
+                check if text in some variations found in keywords.
+            """
+            text=text.lower().strip()
+            
+            if text in self.keywords:
+                return True
+            if len([x for x in self.keywords if SequenceMatcher(None, text,x).ratio()>90])>0:
+                return True
+            
+            if len(self.noise_words)>0:
+
+                text=strip_noise(text)
+                if len([x for x in self.keywords if SequenceMatcher(None, text,x).ratio()>90])>0:
+                    return True
+           
+            return False
+        
         def __keep_only_younger(elements):
+            """
+            remove parents of element in elements if exists
+            elements: list of tags
+            return: list of tags
+            """
             elementsByValue={}
             younger_elements=[]
 
@@ -304,71 +323,123 @@ class GetSimilarItems:
                 else:
                      younger_elements.append(elementsByValue[value][0])
 
-            return younger_elements
-    
-
+            return younger_elements    
+       
+       
         
-        [ignore_tag.decompose() for ignore_tag in soup.find_all(['h1','h2','h3','h4','h5'])]       
-       
-        elements=soup.find_all(self.__is_valid_tag)
-       
-        elements=list(set(elements))
-
-        elements=__keep_only_younger(elements)
-          
+        def __find_rich_parent(e, getParent=False):
+            """
+            Recursive search children contains in examples
+            e: buityfullsoup:list
+            return children :buityfullsoup::list
+            """
+            if e.parent==None or e.parent.name=='body':
+                return None           
+            children=e.parent.findChildren(e.name, recursive=False)
+           
+            if len(children)>0:
+                if getParent==True:
+                    
+                    return e.parent
+                else:                    
+                    return children
+            else: 
+                return __find_rich_parent(e.parent, getParent)
+            
+            
         def get_tags(items, tag, negative=False):
+            """
+            items: list
+            tag : bs4::tag
+            """
             if negative is True:
                 return [e for e in items if not (e.name==tag or  e.parent.name==tag or  e.parent.parent.name==tag)]
             else:                
                 return [e for e in items if (e.name==tag or  e.parent.name==tag or  e.parent.parent.name==tag)]
+            
+
+        def grab_li(elements):
+            """
+            elements:list of tags
+            return elements:list of tags
+            """
+            elements_li=get_tags(elements,'li') 
+            uls=[e.find_parents(['ul','ol'])[0] for e in elements_li]
+            uls=list(set(uls))
+           
+            for ul in uls:                
+                self.result.append([self.sanitize_string(li.text) for li in ul.findChildren('li', recursive=False)])     
+
+            return get_tags(elements,'li',True)            
+        
+        def grab_td(elements):
+            """
+            elements:list of tags
+            return elements:list of tags
+            """
+            elements_td=get_tags(elements,'td')
+            td_parents=[e.find_parents('table')[0] for e in elements_td]
+            td_parents=list(set(td_parents))
+            
+            for table in td_parents:
+                trs=table.find_all('tr')
+                highestIndex=self.__highest_index_table(trs)                
+                self.result.append([self.sanitize_string(tr.find_all('td')[highestIndex].text) for tr in trs])                
+            return get_tags(elements,'td',True)           
+        
+        def grab_other(elements):
+            """
+            elements:list of tags
+           
+            """
+            ep_pars=[]
+            ep_tags=[]
+            for e in elements:
+                ep_pars.append(__find_rich_parent(e, True))
+                ep_tags.append(e.name)               
+            ep_pars_uniq=list(set(ep_pars))
+            for p in ep_pars_uniq:
+                tag=ep_tags[ep_pars.index(p)]
+                children=p.findChildren(tag, recursive=False)
+                if len(children)<1:
+                    children=p.find_all('a')
+
+                self.result.append([self.sanitize_string(c.text) for c in children])
+
+
+        def compare_result(result):
+            """
+                result:list of lists
+            """
+            for res in result:         
+                exists=[r for r in res if is_text_in_keywords(r)]
+                total_count=len(res)
+                exists_count=len(exists)
+                percent=round(exists_count*100/total_count)                                
+                if exists_count>0 and percent>self.sensetivePercent and percent<100:                   
+                    [__validate_append(r,4) for r in res if not is_text_in_keywords(r)]
+                                    
+            return None
+
+        
+
+        
+        [ignore_tag.decompose() for ignore_tag in soup.find_all(['h1','h2','h3','h4','h5','style','script'])]       
+        
+        elements=soup.find_all(self.__is_valid_tag)     
+        elements=list(set(elements))
+        elements=__keep_only_younger(elements)
+        
+        
 
         self.found_items=[]
-        ## li parsing
-        elements_li=get_tags(elements,'li') 
-        li_parents=[e.find_parents(['ul','ol'])[0] for e in elements_li]
-        li_parents=list(set(li_parents))
-        for ul in li_parents:
-            lis=ul.find_all('li')
-            validated=__filter_via_examples(lis,True)
-           
-            percent=len(validated)*100/len(lis)
-            if percent > self.sensetivePercent:
-                for c in __filter_via_examples(lis,False):
-                     __validate_append(c,2)
-                         
-        elements=get_tags(elements,'li',True)
-        #### td parsing
-        elements_td=get_tags(elements,'td')
-        td_parents=[e.find_parents('table')[0] for e in elements_td]
-        td_parents=list(set(td_parents))
-        for table in td_parents:
-            trs=table.find_all('tr')
-            highestIndex=__highest_index_table(trs)
-            tdsFound=[]            
-            for tr in trs:           
-                tds=tr.find_all('td')
-                tdsFound.append(tds[highestIndex])
-            
-            validatedTds=__filter_via_examples(tdsFound,True)
-            percentTds=len(validatedTds) * 100 / len(tdsFound)
-            if percentTds > self.sensetivePercent:
-                for td in __filter_via_examples(tdsFound,False):                 
-                    __validate_append(td,1)
+        elements=grab_td(elements)       
+        elements=grab_li(elements)                
+        grab_other(elements)
         
-        elements=get_tags(elements,'td',True)
-
-        ## other items - search best parents   
-        tags=set([e.name for e in elements])
+        
+        compare_result(self.result)
        
-        elementsParents=[e for e in [__find_rich_parent(e, True) for e in elements]  if e is not None]
-        elementsParents=list(set(elementsParents))
-      
-        for ep in elementsParents:
-            found=ep.find_all(tags)
-            exists=__filter_via_examples(found,True)
-            percent=len(exists) * 100 / len(found)
-            if percent > self.sensetivePercent and percent<100:
-                for it in __filter_via_examples(found,False):                       
-                    __validate_append(it,3)
-            
         return set(self.found_items)
+    
+    
