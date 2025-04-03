@@ -7,7 +7,7 @@ Overall, the **GetSimilarItems** class provides a flexible and customizable way 
 
 ## For example in html exists list, table or other DOM structure:
 
-<code>
+$$
     <ul>
         <li>Apple</li>
         <li>Orange</li>
@@ -15,7 +15,7 @@ Overall, the **GetSimilarItems** class provides a flexible and customizable way 
         <li>Pineapple</li>
         .....
     </ul>
-</code>
+$$
 
 Known example keywords is ['Apple','Orange'].
 Then function get_items_from_html will return values in neighboring tag <li>, except values exists in keywords: ['Kiwi','Pineapple',...]
