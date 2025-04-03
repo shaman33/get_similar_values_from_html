@@ -7,13 +7,15 @@ Overall, the **GetSimilarItems** class provides a flexible and customizable way 
 
 ## For example in html exists list, table or other DOM structure:
 
-```<ul>
+```
+<ul>
         <li>Apple</li>
         <li>Orange</li>
         <li>Kiwi</li>
         <li>Pineapple</li>
         .....
-    </ul>```
+    </ul>
+```
 
 Known example keywords is ['Apple','Orange'].
 Then function get_items_from_html will return values in neighboring tag <li>, except values exists in keywords: ['Kiwi','Pineapple',...]
