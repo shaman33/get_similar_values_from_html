@@ -71,8 +71,8 @@ class GetSimilarItems:
     def set_changes_map(self, changes_map):
         """
         define changes dist
-        changes_map: dist valueToReplace:valueReplacment 
-        (before comparing with examples) 
+        changes_map: dist valueToReplace:valueReplacement
+        (before comparing with examples)
         """
         self.changes_map=changes_map
         pass
@@ -224,7 +224,7 @@ class GetSimilarItems:
                     indexRange[tdIndex] += 1
         maxValue = max(indexRange.values())
         highestIndex = list(indexRange.values()).index(maxValue)
-        
+
         return highestIndex
 
     def __validate_append(self, text, place):
@@ -495,15 +495,11 @@ class GetSimilarItems:
                     current_object["childs"][tag] = {"childs": {}}
 
                 current_object = current_object["childs"][tag]
-        
+
         self.recursive_find_variety(generated_paths, 0)       
         new_paths=self.extract_data_from_tree(generated_paths)                   
         return new_paths
         pass
-
-
-     
-    
 
     def extract_data_from_tree(self, tree, step=0):
         """
@@ -526,8 +522,6 @@ class GetSimilarItems:
                 results.append(current_path)                
         return results
 
-
-    
     def get_shared_paths(self, elements):
         """
         Generates a list of shared CSS path patterns from a collection of elements.
@@ -544,7 +538,6 @@ class GetSimilarItems:
         finalPaths = self.generate_path_patterns(paths)                      
         return finalPaths
 
-    
     def extract_recursive(self, paths, body, step):
         """
         Recursively extracts content from an HTML structure based on a list of paths.
@@ -568,7 +561,7 @@ class GetSimilarItems:
             return None
 
         path = paths.pop(0)
-      
+
         len_path = len(paths)
         childId = 0
         if path.find("nth-child") > -1:
@@ -577,13 +570,13 @@ class GetSimilarItems:
         elif path.find("*") > -1:
             childId = -1
             path = path.split(":")[0]
-       
+
         content = body.find_all(path, recursive=False)
         len_content = len(content)
 
         if len_content == 1:
             if len(paths) > 0:               
-               return self.extract_recursive(paths.copy(), content[childId], step + 1)               
+                return self.extract_recursive(paths.copy(), content[childId], step + 1)               
             else:
                 return content[0].text
         elif len_content > 1:
@@ -599,7 +592,7 @@ class GetSimilarItems:
                 return result
             else:
                 if len_path > 0:
-                    
+
                     return self.extract_recursive(
                         paths.copy(), content[childId], step + 1
                     )
@@ -758,7 +751,7 @@ class GetSimilarItems:
                 if len(tds)>0:                    
                     table_items.append(self.__sanitize_string(tds[highestIndex].text))
             self.result.append(table_items)
-                        
+
         return self.get_tags(elements, "td", True)
 
     def __compare_results(self):
@@ -785,7 +778,7 @@ class GetSimilarItems:
 
         result:list of lists
         """
-   
+
         for res in self.result:
             exists = [r for r in res if self.is_text_in_keywords(r)]
             total_count = len(res)
@@ -817,13 +810,13 @@ class GetSimilarItems:
         [ignore_tag.decompose() for ignore_tag in soup.find_all(['h1','h2','h3','h4','h5','style','script'])]       
 
         elements = soup.find_all(self.__is_valid_tag)
-        
+
         elements=list(set(elements))        
-        
+
         self.found_items=[]
         elements=self.__grab_td(elements) 
         if len(elements)>0:         
             self.__grab_other(elements)
-        
+
         self.__compare_results()
         return set(self.found_items)
