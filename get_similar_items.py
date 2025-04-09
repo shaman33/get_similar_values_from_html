@@ -35,21 +35,17 @@ class GetSimilarItems:
         'word_exceptions':[],
         'sensitive_percent':30
     }
-    
+
     keywords=[]
-    
+
     counter=0
     result=[]
     found_items=[]
-    
-    
-    
+
     def __init__(self, config):
         for key in config.keys():
             self.config[key]=config[key]        
         pass
-    
-
 
     def set_keywords(self, keywords):
         """
@@ -79,7 +75,6 @@ class GetSimilarItems:
         name=self.__sanitize_string(name.lower())
         keywords=self.keywords
 
-       
         if name in keywords:
             return False
         # if name in keywords or name in found_items:
@@ -275,9 +270,7 @@ class GetSimilarItems:
 
         return False
 
-    def # The code `fix_three_level` is not a valid Python code. It seems like a placeholder or a
-    # comment. It does not perform any specific action or operation in Python.
-    fix_three_level(self, three, new_tag, outdated_tags):
+    def fix_three_level(self, three, new_tag, outdated_tags):
         """
         Updates a hierarchical dictionary structure (`three`) by merging outdated tags into a new tag.
         Args:
