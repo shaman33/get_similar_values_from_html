@@ -35,13 +35,21 @@ from get_similar_items import GetSimilarItems
 **parse_engine=GetSimilarItems()**
 
 **parse_engine.set_config({
+
         'debug_text':None,  #optional - stop and print info then scraping text equal to debug_text
+        
         'text_max_length':50, #maximal scraped text length, longer excepting
+        
         'items_min_count':2, #minimum items should be found in list, if less items_min_count - list excepting
+        
         'noise_words':['fruit'], #noise_words strip this words from comparing
+        
         'char_exceptions':['#', '@', '$'], #except if char found 
+        
         'word_exceptions':['name'], #except if word found
+        
         'sensitive_percent':30 #list should contain minimum x percents 
+        
     })**
 
 
