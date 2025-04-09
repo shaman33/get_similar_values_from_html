@@ -9,17 +9,15 @@ Extract similar to given keywords items from html.
 __author__      = "Roman Shneer" romanshneer@gmail.com
 
 Usage:
-parse_engine=GetSimilarItems(30)    
-
-
-parse_engine.set_changes_map({'value to replace':'new value' })
-parse_engine.set_noise_words(['fruit'])    
-parse_engine.set_char_exceptions(['#','@','$'])
-parse_engine.set_word_exceptions(['name'])
-parse_engine.set_max_length(50)
-parse_engine.set_min_count(50)
-
-#parse_engine.set_debug_text('orange')
+parse_engine=GetSimilarItems({
+        'debug_text':None,  #optional - stop and print info then scraping text equal to debug_text
+        'text_max_length':0, #maximal scraped text length, longer excepting
+        'items_min_count':0, #minimum items should be found in list, if less items_min_count - list excepting
+        'noise_words':[], #noise_words strip this words from comparing
+        'char_exceptions':[], #except if char found 
+        'word_exceptions':[], #except if word found
+        'sensitive_percent':30 #list should contain minimum x percents 
+    })    
 
 parse_engine.set_keywords(['apple','banana','kiwi'])
 items=parse_engine.get(html)     
@@ -28,31 +26,30 @@ print(set(items))
 """
 
 class GetSimilarItems:
-
-    debugText=None
-    max_length=0
-    min_count=2
-    changes_map={}
+    config={
+        'debug_text':None,
+        'text_max_length':0,
+        'items_min_count':0,
+        'noise_words':[],
+        'char_exceptions':[],
+        'word_exceptions':[],
+        'sensitive_percent':30
+    }
+    
     keywords=[]
-    noise_words=[]
-    char_exceptions=[]
-    word_exceptions=[]
+    
     counter=0
     result=[]
     found_items=[]
-
-    def __init__(self, sensitive_percent=30):
-
-        self.sensitive_percent=sensitive_percent
-        self.found_items=[]
-        """
-        sensitive_percent: int - sensitive of recursive search minimum percent's count of items required for positive response
-        """
+    
+    
+    
+    def __init__(self, config):
+        for key in config.keys():
+            self.config[key]=config[key]        
         pass
+    
 
-    def set(self, key, value):        
-        method = getattr(self, f"set_{key}")
-        method(value)
 
     def set_keywords(self, keywords):
         """
@@ -60,53 +57,6 @@ class GetSimilarItems:
         keywords: list
         """
         self.keywords=keywords
-
-    def set_debug_text(self, debugText):
-        """
-        stop execution and show tag if debugText processing
-        debugText:str
-        """
-        self.debugText=debugText
-
-    def set_changes_map(self, changes_map):
-        """
-        define changes dist
-        changes_map: dist valueToReplace:valueReplacement
-        (before comparing with examples)
-        """
-        self.changes_map=changes_map
-        pass
-
-    def set_noise_words(self, noise_words):
-        """ 
-        noise_words: list of strings which should be removed in case value not found in examples 
-        (before comparing with examples) 
-        """
-        self.noise_words=noise_words
-        pass
-
-    def set_char_exceptions(self, char_exceptions):
-        """ 
-        char_exceptions: list of strings - value will be skipped in case char will be found in text of value
-        (before comparing with examples) 
-        """
-        self.char_exceptions=char_exceptions
-        pass
-
-    def set_word_exceptions(self, word_exceptions):
-        """ 
-        word_exceptions: list of strings - value will be skipped in case word will be found in words of value
-        (before comparing with examples) 
-        """
-        self.word_exceptions=word_exceptions
-        pass
-
-    def set_max_length(self, max_length):
-        """
-        define max length of value - optimization performance
-        max_length:int
-        """
-        self.max_length=max_length
 
     def __sanitize_string(self, value):
         """
@@ -120,13 +70,6 @@ class GetSimilarItems:
             value=value[:len(value)-1]        
         return value
 
-    def set_min_count(self, min_count):
-        """
-        define minimal count of items in found list to control against garbage
-        min_count:int
-        """
-        self.min_count=min_count
-
     def __is_new_record(self, name):  
         """
         Detect if value exists in any variations in keywords list
@@ -136,15 +79,14 @@ class GetSimilarItems:
         name=self.__sanitize_string(name.lower())
         keywords=self.keywords
 
-        if name in self.changes_map:
-            name=self.changes_map[name] 
+       
         if name in keywords:
             return False
         # if name in keywords or name in found_items:
         #    return False
 
-        if len(self.noise_words)>0:
-            for nw in self.noise_words:              
+        if len(self.config['noise_words'])>0:
+            for nw in self.config['noise_words']:              
                 if name.find(nw)>-1:                                        
                     name1=name.replace(nw,'').strip()                           
 
@@ -188,19 +130,19 @@ class GetSimilarItems:
         if len(text)==0:
             return False
 
-        if self.max_length > 0:
-            if len(text)>self.max_length:
+        if self.config['text_max_length'] > 0:
+            if len(text)>self.config['text_max_length']:
                 return False
 
-        for we in self.char_exceptions:              
+        for we in self.config['char_exceptions']:              
             if text.find(we)>-1:
                 return False
-        if len(self.word_exceptions)>0:
+        if len(self.config['word_exceptions'])>0:
 
             words=text.replace(':',' ').replace('.',' ').replace(',',' ').replace(';',' ').replace('#',' ').replace('-',' ').replace('\n',' ').replace('\t',' ').split(' ')
             words=[w for w in words if w!='']                        
             words.sort()
-            changedWords=list(set(words)-set(self.word_exceptions))
+            changedWords=list(set(words)-set(self.config['word_exceptions']))
             changedWords.sort()                                
             if changedWords!=words:                                                            
                 return False
@@ -239,7 +181,7 @@ class GetSimilarItems:
         broken = False
         value = self.__sanitize_string(text)
 
-        for we in self.char_exceptions:
+        for we in self.config['char_exceptions']:
             if value.lower().find(we) > -1:
                 broken = True
         if broken == True:
@@ -248,11 +190,11 @@ class GetSimilarItems:
         if value in self.found_items or self.__strip_noise(value) in self.found_items:
             return None
 
-        if self.debugText is not None and value == self.debugText:
+        if self.config['debug_text'] is not None and value == self.config['debug_text']:
             print(text, value, place)
             exit()
 
-        if len(self.word_exceptions) > 0:
+        if len(self.config['word_exceptions']) > 0:
 
             words = (
                 value.lower()
@@ -268,7 +210,7 @@ class GetSimilarItems:
             )
             words = [w for w in words if w != ""]
             words.sort()
-            changedWords = list(set(words) - set(self.word_exceptions))
+            changedWords = list(set(words) - set(self.config['word_exceptions']))
             changedWords.sort()
             if changedWords == words:
                 self.found_items.append(value)
@@ -290,8 +232,8 @@ class GetSimilarItems:
         Returns:
             str: The cleaned text with noise words removed.
         """
-        if len(self.noise_words) > 0:
-            for nw in self.noise_words:
+        if len(self.config['noise_words']) > 0:
+            for nw in self.config['noise_words']:
                 if text.find(nw) > -1:
                     text = text.replace(nw, "").strip()
         return text
@@ -316,7 +258,7 @@ class GetSimilarItems:
         ):
             return True
 
-        if len(self.noise_words) > 0:
+        if len(self.config['noise_words']) > 0:
 
             text = self.__strip_noise(text)
             if (
@@ -333,7 +275,9 @@ class GetSimilarItems:
 
         return False
 
-    def fix_three_level(self, three, new_tag, outdated_tags):
+    def # The code `fix_three_level` is not a valid Python code. It seems like a placeholder or a
+    # comment. It does not perform any specific action or operation in Python.
+    fix_three_level(self, three, new_tag, outdated_tags):
         """
         Updates a hierarchical dictionary structure (`three`) by merging outdated tags into a new tag.
         Args:
@@ -765,9 +709,8 @@ class GetSimilarItems:
         Returns:
             None
         Attributes:
-            self.result (list of lists): A collection of lists to be processed.
-            self.min_count (int): The minimum number of matches required for processing.
-            self.sensitive_percent (int): The sensitivity percentage threshold for processing.
+            self.result (list of lists): A collection of lists to be processed.            
+            
         Helper Methods:
             self.is_text_in_keywords(text): Checks if the given text exists in the keywords.
             self.__validate_append(item, message): Validates and appends an item with a message.
@@ -786,8 +729,8 @@ class GetSimilarItems:
             percent = round(exists_count * 100 / total_count)
 
             if (
-                exists_count > (self.min_count - 1)
-                and percent > self.sensitive_percent
+                exists_count > (self.config['items_min_count'] - 1)
+                and percent > self.config['sensitive_percent']
                 and percent < 100
             ):
                 [

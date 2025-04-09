@@ -34,17 +34,24 @@ html = (
 
 def test_table():
 
-    parse_engine = GetSimilarItems(10)
+    parse_engine = GetSimilarItems({
+        'sensitive_percent':10,
+        'items_min_count':1
+    })
+  
     parse_engine.set_keywords(["read", "pink"])
-    parse_engine.set_min_count(1)
+    
     items = parse_engine.get(html)
     print("items", items)
     assert len(items) == 5
 
 
 def test_others():
-    parse_engine = GetSimilarItems(10)
-    parse_engine.set_min_count(1)
+    parse_engine = GetSimilarItems({
+        'sensitive_percent':10,
+        'items_min_count':1
+    })
+   
     parse_engine.set_keywords(["link2", "link1", "link3", "link4"])
     items = parse_engine.get(html)
     print("items", items)
