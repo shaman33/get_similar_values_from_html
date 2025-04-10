@@ -110,7 +110,22 @@ class GetSimilarItems:
                 return False
 
         return True
-
+    
+    def __is_word_exception(self, text):
+        if len(self.config['word_exceptions'])>0:
+            words=self.__clear_punctuation(text).split(' ')            
+            words=[w for w in words if w!='']                        
+            words.sort()
+            changedWords=list(set(words)-set(self.config['word_exceptions']))
+            changedWords.sort()                                
+            if changedWords!=words:                                                            
+                return True
+        return False
+    
+    
+    def _is_char_exceptions(self, text):
+        return len([we for we in self.config['char_exceptions'] if text.find(we)>-1])>0
+        
     def __is_valid_tag(self, tag):
         """
         Detect if tag can be collected and new
@@ -125,23 +140,15 @@ class GetSimilarItems:
         if len(text)==0:
             return False
 
-        if self.config['text_max_length'] > 0:
-            if len(text)>self.config['text_max_length']:
-                return False
-
-        for we in self.config['char_exceptions']:              
-            if text.find(we)>-1:
-                return False
-        if len(self.config['word_exceptions'])>0:
-
-            words=text.replace(':',' ').replace('.',' ').replace(',',' ').replace(';',' ').replace('#',' ').replace('-',' ').replace('\n',' ').replace('\t',' ').split(' ')
-            words=[w for w in words if w!='']                        
-            words.sort()
-            changedWords=list(set(words)-set(self.config['word_exceptions']))
-            changedWords.sort()                                
-            if changedWords!=words:                                                            
-                return False
-
+        if self.config['text_max_length'] > 0 and len(text)>self.config['text_max_length']:
+            return False
+        
+        if self._is_char_exceptions(text):
+            return False        
+        
+        if self.__is_word_exception(text)==True:
+            return False
+                
         return text in self.keywords
 
     def __highest_index_table(self, trs):
@@ -151,19 +158,34 @@ class GetSimilarItems:
         """
         indexRange = {}
         for tr in trs:
-            tds = tr.find_all("td")
-            for tdIndex in range(0, len(tds)):
-                td = tds[tdIndex]
-
-                if tdIndex not in indexRange:
-                    indexRange[tdIndex] = 0
+            for tdIndex,td in enumerate(tr.find_all("td")):                     
+                indexRange[tdIndex] = indexRange.get(tdIndex,0)
                 if self.__is_new_record(td.text) == False:
                     indexRange[tdIndex] += 1
         maxValue = max(indexRange.values())
         highestIndex = list(indexRange.values()).index(maxValue)
 
         return highestIndex
+    
+    
+    def __clear_punctuation(self,text):
+        """
+        Removes punctuation and specific characters from the input text.
 
+        This method replaces newline characters, tabs, and a set of punctuation 
+        characters (., ?, :, ;, -, #) with a single space.
+
+        Args:
+            text (str): The input string from which punctuation and specific 
+            characters will be removed.
+
+        Returns:
+            str: The cleaned text with specified characters replaced by spaces.
+        """
+        text=re.sub("[\n\t#.?:,;-]+", " ", text)
+        return text
+    
+    
     def __validate_append(self, text, place):
         """
         found_items:list which collecting similar items in case its not excepted by char_exceptions or word_exception
@@ -172,14 +194,8 @@ class GetSimilarItems:
         originalText: string - used for debugging
         return None
         """
-
-        broken = False
         value = self.__sanitize_string(text)
-
-        for we in self.config['char_exceptions']:
-            if value.lower().find(we) > -1:
-                broken = True
-        if broken == True:
+        if self._is_char_exceptions(value):
             return None
 
         if value in self.found_items or self.__strip_noise(value) in self.found_items:
@@ -188,29 +204,10 @@ class GetSimilarItems:
         if self.config['debug_text'] is not None and value == self.config['debug_text']:
             print(text, value, place)
             exit()
-
-        if len(self.config['word_exceptions']) > 0:
-
-            words = (
-                value.lower()
-                .replace(":", " ")
-                .replace(".", " ")
-                .replace(",", " ")
-                .replace(";", " ")
-                .replace("#", " ")
-                .replace("-", " ")
-                .replace("\n", " ")
-                .replace("\t", " ")
-                .split(" ")
-            )
-            words = [w for w in words if w != ""]
-            words.sort()
-            changedWords = list(set(words) - set(self.config['word_exceptions']))
-            changedWords.sort()
-            if changedWords == words:
-                self.found_items.append(value)
+            
+        if self.__is_word_exception(value.lower()):
             return None
-
+        
         self.found_items.append(value)
 
     def __strip_noise(self, text):
@@ -304,8 +301,8 @@ class GetSimilarItems:
                 }
             }
         """
-        if new_tag not in three["childs"].keys():
-            three["childs"][new_tag] = {"childs": {}}
+        
+        three["childs"][new_tag] =  three["childs"].get(new_tag, {"childs": {}})
         for ot in outdated_tags:
             for ot_id in three["childs"][ot]["childs"].keys():
                 if ot_id in three["childs"][new_tag]["childs"].keys():
@@ -453,8 +450,7 @@ class GetSimilarItems:
             current_path = [key]
             if len(value.get("childs", {})) > 0:                
                 child_results = self.extract_data_from_tree(value, step + 1)
-                for child_result in child_results:
-                    results.append(current_path + child_result)                
+                [results.append(current_path + child_result) for child_result in child_results]                
             else:
                 results.append(current_path)                
         return results
