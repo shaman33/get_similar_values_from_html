@@ -445,27 +445,24 @@ class GetSimilarItems:
               and generate the final list of paths.
         """        
         generated_paths = {"childs": {}}
-        for pid, path in enumerate(paths):
+        for path in paths:
             path = path.split(" > ")
             current_object = None
             for i, tag in enumerate(path):
                 if current_object is None:
                     current_object = generated_paths
-
-                if "childs" not in current_object.keys():
-                    current_object = {"childs": {}}
-
-                if tag not in current_object["childs"].keys():
-                    current_object["childs"][tag] = {"childs": {}}
-
+                current_object["childs"] = current_object.get("childs", {"childs": {}})
+                current_object["childs"][tag] = current_object["childs"].get(
+                    tag, {"childs": {}}
+                )
                 current_object = current_object["childs"][tag]
 
         self.recursive_find_variety(generated_paths, 0)       
-        new_paths=self.extract_data_from_tree(generated_paths)                   
+        new_paths = self.__extract_data_from_tree(generated_paths)
         return new_paths
         pass
 
-    def extract_data_from_tree(self, tree, step=0):
+    def __extract_data_from_tree(self, tree, step=0):
         """
         Recursively extracts data from a tree-like dictionary structure.
 
@@ -479,13 +476,13 @@ class GetSimilarItems:
         for key, value in tree.get("childs", {}).items():
             current_path = [key]
             if len(value.get("childs", {})) > 0:                
-                child_results = self.extract_data_from_tree(value, step + 1)
+                child_results = self.__extract_data_from_tree(value, step + 1)
                 [results.append(current_path + child_result) for child_result in child_results]                
             else:
                 results.append(current_path)                
         return results
 
-    def get_shared_paths(self, elements):
+    def __get_shared_paths(self, elements):
         """
         Generates a list of shared CSS path patterns from a collection of elements.
         This method takes a list of elements, extracts their CSS paths, sorts them,
@@ -498,10 +495,10 @@ class GetSimilarItems:
         """        
         paths=[self.get_css_path(element) for element in elements]        
         paths.sort()
-        finalPaths = self.generate_path_patterns(paths)                      
-        return finalPaths
+        final_paths = self.generate_path_patterns(paths)
+        return final_paths
 
-    def extract_recursive(self, paths, body, step):
+    def __extract_recursive(self, paths, body, step):
         """
         Recursively extracts content from an HTML structure based on a list of paths.
         Args:
@@ -539,7 +536,9 @@ class GetSimilarItems:
 
         if len_content == 1:
             if len(paths) > 0:               
-                return self.extract_recursive(paths.copy(), content[childId], step + 1)               
+                return self.__extract_recursive(
+                    paths.copy(), content[childId], step + 1
+                )
             else:
                 return content[0].text
         elif len_content > 1:
@@ -548,7 +547,9 @@ class GetSimilarItems:
                 for c in content:
 
                     if len_path > 0:
-                        result.append(self.extract_recursive(paths.copy(), c, step + 1))
+                        result.append(
+                            self.__extract_recursive(paths.copy(), c, step + 1)
+                        )
                     else:
                         result.append(c.text)
                 result = [x for x in result if x is not None]
@@ -556,14 +557,16 @@ class GetSimilarItems:
             else:
                 if len_path > 0:
 
-                    return self.extract_recursive(
+                    return self.__extract_recursive(
                         paths.copy(), content[childId], step + 1
                     )
                 else:
                     return content[childId].text
         else:
             if len_path > 0:                
-                return self.extract_recursive(paths.copy(), content[childId], step + 1)
+                return self.__extract_recursive(
+                    paths.copy(), content[childId], step + 1
+                )
             else:
                 return [c.text for c in content]
 
@@ -586,10 +589,10 @@ class GetSimilarItems:
             None
         """
         elements = self.__keep_only_younger(elements)
-        paths = list(self.get_shared_paths(elements))
+        paths = list(self.__get_shared_paths(elements))
         body = elements[0].find_parents("body")[0]
         for path in paths:
-            items = self.extract_recursive(path, body, 1)
+            items = self.__extract_recursive(path, body, 1)
             self.result.append(items)
 
     def __keep_only_younger(self, elements):
@@ -673,28 +676,6 @@ class GetSimilarItems:
                 break
             path.insert(0, self.get_element(parent))
         return " > ".join(path)
-
-    def get_tags(self, items, tag, negative=False):
-        """
-        items: list
-        tag : bs4::tag
-        """
-        if negative is True:
-            return [
-                e
-                for e in items
-                if not (
-                    e.name == tag or e.parent.name == tag or e.parent.parent.name == tag
-                )
-            ]
-        else:
-            return [
-                e
-                for e in items
-                if (
-                    e.name == tag or e.parent.name == tag or e.parent.parent.name == tag
-                )
-            ]
 
     def __grab_td(self, elements):
         """
