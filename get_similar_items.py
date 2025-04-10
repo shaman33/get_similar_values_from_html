@@ -164,7 +164,22 @@ class GetSimilarItems:
         tag:buityfullsoup:tag
         """
 
-        if tag.name in ['html','head','meta','link','script','title','style','noscript','img','body','header','form','table','tr']:
+        if tag.name in (
+            "html",
+            "head",
+            "meta",
+            "link",
+            "script",
+            "title",
+            "style",
+            "noscript",
+            "img",
+            "body",
+            "header",
+            "form",
+            "table",
+            "tr",
+        ):
             return False
 
         text=self.__sanitize_string(tag.text.lower())
@@ -612,8 +627,7 @@ class GetSimilarItems:
         younger_elements = []
 
         for e in elements:
-            if e.text not in elementsByValue.keys():
-                elementsByValue[e.text] = []
+            elementsByValue[e.text] = elementsByValue.get(e.text, [])
             elementsByValue[e.text].append(e)
 
         for value in elementsByValue.keys():
@@ -629,8 +643,7 @@ class GetSimilarItems:
                 if smallerItem is not None:
                     younger_elements.append(smallerItem)
                 else:
-                    for x in elementsByValue[value]:
-                        younger_elements.append(x)
+                    [younger_elements.append(x) for x in elementsByValue[value]]
             else:
                 younger_elements.append(elementsByValue[value][0])
 
