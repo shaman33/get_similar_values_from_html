@@ -66,51 +66,6 @@ class GetSimilarItems:
             value=value[:len(value)-1]        
         return value
 
-    def __is_new_record(self, name):  
-        """
-        Detect if value exists in any variations in keywords list
-        name:str
-        return Boolean
-        """
-        name=self.__sanitize_string(name.lower())
-        keywords=self.keywords
-
-        if name in keywords:
-            return False
-        # if name in keywords or name in found_items:
-        #    return False
-
-        if len(self.config['noise_words'])>0:
-            for nw in self.config['noise_words']:              
-                if name.find(nw)>-1:                                        
-                    name1=name.replace(nw,'').strip()                           
-
-                    if name1 in keywords:                     
-                        return False
-
-                    if name1[len(name1)-1:]!='s':
-                        name1=name1+'s'
-                        if name1 in keywords:
-                            return False     
-
-        if name.find('(')>-1:
-            name2=name[0:name.find('(')].strip()
-            if name2 in keywords:
-                return False      
-
-        ### Add s to end of world
-        if name[len(name)-1:]!='s':            
-            name3=name+'s'
-            if name3 in keywords:
-                return False
-        else:
-            ### drop s to end of world
-            name4=name[0:len(name)-1]
-            if name4 in keywords:
-                return False
-
-        return True
-
     def __is_word_exception(self, text):
         if len(self.config['word_exceptions'])>0:
             words=self.__clear_punctuation(text).split(' ')            
@@ -207,7 +162,7 @@ class GetSimilarItems:
         for tr in trs:
             for tdIndex,td in enumerate(tr.find_all("td")):                     
                 indexRange[tdIndex] = indexRange.get(tdIndex,0)
-                if self.__is_new_record(td.text) == False:
+                if self.__is_text_in_keywords(td.text):
                     indexRange[tdIndex] += 1
         maxValue = max(indexRange.values())
         highestIndex = list(indexRange.values()).index(maxValue)
@@ -275,7 +230,7 @@ class GetSimilarItems:
                     text = text.replace(nw, "").strip()
         return text
 
-    def is_text_in_keywords(self, text):
+    def __is_text_in_keywords(self, text):
         """
         check if text in some variations found in keywords.
         """
@@ -283,32 +238,20 @@ class GetSimilarItems:
 
         if text in self.keywords:
             return True
+        text = self.__strip_noise(text)
+        if text in self.keywords:
+            return True
         if (
             len(
                 [
                     x
                     for x in self.keywords
-                    if SequenceMatcher(None, text, x).ratio() > 90
+                    if SequenceMatcher(None, text, self.__strip_noise(x)).ratio() > 90
                 ]
             )
             > 0
         ):
             return True
-
-        if len(self.config['noise_words']) > 0:
-
-            text = self.__strip_noise(text)
-            if (
-                len(
-                    [
-                        x
-                        for x in self.keywords
-                        if SequenceMatcher(None, text, x).ratio() > 90
-                    ]
-                )
-                > 0
-            ):
-                return True
 
         return False
 
@@ -363,7 +306,7 @@ class GetSimilarItems:
 
         pass
 
-    def compare_list(self, elements):
+    def __compare_list(self, elements):
         """
         Compare if all elements in the list are equal.
         elements: list
@@ -381,7 +324,7 @@ class GetSimilarItems:
         except Exception as e:
             raise ValueError(f"Error comparing elements: {e}")
 
-    def recursive_find_variety(self, three, step):
+    def __recursive_find_variety(self, three, step):
         """
         Recursively processes a hierarchical data structure (tree) to identify and handle
         patterns or varieties in the child nodes. The method modifies the tree in place
@@ -399,7 +342,7 @@ class GetSimilarItems:
               a new generalized tag and recursively processes the new node.
             - Continues recursion for nodes with further child nodes.
         Notes:
-            - Assumes the presence of helper methods `compare_list` and `fix_three_level`
+            - Assumes the presence of helper methods `__compare_list` and `fix_three_level`
               for comparing child structures and modifying the tree, respectively.
             - The method is designed to work with a specific tree structure format
               and may not be applicable to other formats without modification.
@@ -424,24 +367,26 @@ class GetSimilarItems:
 
                     if len(broths) > 1:
 
-                        if self.compare_list(
+                        if self.__compare_list(
                             [three["childs"][x]["childs"] for x in broths]
                         ):
                             self.fix_three_level(three, ut.split(":")[0] + ":*", broths)
-                            self.recursive_find_variety(
+                            self.__recursive_find_variety(
                                 three["childs"][new_tag], step + 1
                             )
                         else:
-                            self.recursive_find_variety(three["childs"][tag], step + 1)
+                            self.__recursive_find_variety(
+                                three["childs"][tag], step + 1
+                            )
                     else:
-                        self.recursive_find_variety(three["childs"][tag], step + 1)
+                        self.__recursive_find_variety(three["childs"][tag], step + 1)
 
                 elif len(three["childs"][tag]["childs"].keys()) > 0:
-                    self.recursive_find_variety(three["childs"][tag], step + 1)
+                    self.__recursive_find_variety(three["childs"][tag], step + 1)
 
         pass
 
-    def generate_path_patterns(self, paths):
+    def __generate_path_patterns(self, paths):
         """
         Generates hierarchical path patterns from a list of paths and converts the resulting tree structure
         back into a list of paths.
@@ -456,9 +401,9 @@ class GetSimilarItems:
         3. Converts the tree structure back into a list of paths.
         Note:
             - The method assumes that the input paths are well-formed and use " > " as the delimiter.
-            - The `recursive_find_variety` and `three_to_paths` methods are used internally to process the tree
+            - The `__recursive_find_variety` and `three_to_paths` methods are used internally to process the tree
               and generate the final list of paths.
-        """        
+        """
         generated_paths = {"childs": {}}
         for path in paths:
             path = path.split(" > ")
@@ -472,7 +417,7 @@ class GetSimilarItems:
                 )
                 current_object = current_object["childs"][tag]
 
-        self.recursive_find_variety(generated_paths, 0)       
+        self.__recursive_find_variety(generated_paths, 0)
         new_paths = self.__extract_data_from_tree(generated_paths)
         return new_paths
         pass
@@ -508,9 +453,9 @@ class GetSimilarItems:
         Returns:
             list: A list of shared CSS path patterns derived from the input elements.
         """        
-        paths=[self.get_css_path(element) for element in elements]        
+        paths = [self.__get_css_path(element) for element in elements]
         paths.sort()
-        final_paths = self.generate_path_patterns(paths)
+        final_paths = self.__generate_path_patterns(paths)
         return final_paths
 
     def __extract_recursive(self, paths, body, step):
@@ -649,7 +594,7 @@ class GetSimilarItems:
 
         return younger_elements
 
-    def get_element(self, node):
+    def __get_element(self, node):
         """
         Generates a CSS selector for a given HTML node based on its position among siblings of the same type.
 
@@ -673,7 +618,7 @@ class GetSimilarItems:
         # else:
         #   return node.name
 
-    def get_css_path(self, node):
+    def __get_css_path(self, node):
         """
         Generates the CSS path for a given HTML node by traversing its parent elements.
 
@@ -683,11 +628,11 @@ class GetSimilarItems:
         Returns:
             str: A string representing the CSS path of the node, with elements separated by " > ".
         """
-        path = [self.get_element(node)]
+        path = [self.__get_element(node)]
         for parent in node.parents:
             if parent.name == "body":
                 break
-            path.insert(0, self.get_element(parent))
+            path.insert(0, self.__get_element(parent))
         return " > ".join(path)
 
     def __grab_td(self, elements):
@@ -720,10 +665,10 @@ class GetSimilarItems:
         Returns:
             None
         Attributes:
-            self.result (list of lists): A collection of lists to be processed.            
-            
+            self.result (list of lists): A collection of lists to be processed.
+
         Helper Methods:
-            self.is_text_in_keywords(text): Checks if the given text exists in the keywords.
+            self.__is_text_in_keywords(text): Checks if the given text exists in the keywords.
             self.__validate_append(item, message): Validates and appends an item with a message.
         Notes:
             - The method ensures that the percentage of matches is less than 100%
@@ -736,7 +681,7 @@ class GetSimilarItems:
         for collection in self.result:
             total_count = len(collection)
             new_elements = [
-                item for item in collection if not self.is_text_in_keywords(item)
+                item for item in collection if not self.__is_text_in_keywords(item)
             ]
             new_count = len(new_elements)
             exists_count = total_count - new_count
