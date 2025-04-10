@@ -110,7 +110,7 @@ class GetSimilarItems:
                 return False
 
         return True
-    
+
     def __is_word_exception(self, text):
         if len(self.config['word_exceptions'])>0:
             words=self.__clear_punctuation(text).split(' ')            
@@ -121,11 +121,43 @@ class GetSimilarItems:
             if changedWords!=words:                                                            
                 return True
         return False
-    
-    
-    def _is_char_exceptions(self, text):
-        return len([we for we in self.config['char_exceptions'] if text.find(we)>-1])>0
-        
+
+    def __is_char_exceptions(self, text):
+        return (
+            len([we for we in self.config["char_exceptions"] if text.find(we) > -1]) > 0
+        )
+
+    def __is_valid_table_cell(self, tag):
+        """
+        Detect if tag can be collected and new
+        tag:buityfullsoup:tag
+        """
+
+        if tag.name not in [
+            "td",
+            "th",
+        ]:
+            return False
+
+        text = self.__sanitize_string(tag.text.lower())
+
+        if len(text) == 0:
+            return False
+
+        if (
+            self.config["text_max_length"] > 0
+            and len(text) > self.config["text_max_length"]
+        ):
+            return False
+
+        if self.__is_char_exceptions(text):
+            return False
+
+        if self.__is_word_exception(text) == True:
+            return False
+
+        return text in self.keywords
+
     def __is_valid_tag(self, tag):
         """
         Detect if tag can be collected and new
@@ -142,13 +174,13 @@ class GetSimilarItems:
 
         if self.config['text_max_length'] > 0 and len(text)>self.config['text_max_length']:
             return False
-        
-        if self._is_char_exceptions(text):
+
+        if self.__is_char_exceptions(text):
             return False        
-        
+
         if self.__is_word_exception(text)==True:
             return False
-                
+
         return text in self.keywords
 
     def __highest_index_table(self, trs):
@@ -166,8 +198,7 @@ class GetSimilarItems:
         highestIndex = list(indexRange.values()).index(maxValue)
 
         return highestIndex
-    
-    
+
     def __clear_punctuation(self,text):
         """
         Removes punctuation and specific characters from the input text.
@@ -184,8 +215,7 @@ class GetSimilarItems:
         """
         text=re.sub("[\n\t#.?:,;-]+", " ", text)
         return text
-    
-    
+
     def __validate_append(self, text, place):
         """
         found_items:list which collecting similar items in case its not excepted by char_exceptions or word_exception
@@ -195,7 +225,7 @@ class GetSimilarItems:
         return None
         """
         value = self.__sanitize_string(text)
-        if self._is_char_exceptions(value):
+        if self.__is_char_exceptions(value):
             return None
 
         if value in self.found_items or self.__strip_noise(value) in self.found_items:
@@ -204,10 +234,10 @@ class GetSimilarItems:
         if self.config['debug_text'] is not None and value == self.config['debug_text']:
             print(text, value, place)
             exit()
-            
+
         if self.__is_word_exception(value.lower()):
             return None
-        
+
         self.found_items.append(value)
 
     def __strip_noise(self, text):
@@ -301,7 +331,7 @@ class GetSimilarItems:
                 }
             }
         """
-        
+
         three["childs"][new_tag] =  three["childs"].get(new_tag, {"childs": {}})
         for ot in outdated_tags:
             for ot_id in three["childs"][ot]["childs"].keys():
@@ -671,7 +701,7 @@ class GetSimilarItems:
         elements:list of tags
         return elements:list of tags
         """
-        elements_td = self.get_tags(elements, "td")
+        elements_td = [e for e in elements if e.name in ("td", "th")]
         td_parents = [e.find_parents("table")[0] for e in elements_td]
         td_parents = list(set(td_parents))
 
@@ -684,8 +714,6 @@ class GetSimilarItems:
                 if len(tds)>0:                    
                     table_items.append(self.__sanitize_string(tds[highestIndex].text))
             self.result.append(table_items)
-
-        return self.get_tags(elements, "td", True)
 
     def __compare_results(self):
         """
@@ -711,10 +739,13 @@ class GetSimilarItems:
         result:list of lists
         """
 
-        for res in self.result:
-            exists = [r for r in res if self.is_text_in_keywords(r)]
-            total_count = len(res)
-            exists_count = len(exists)
+        for collection in self.result:
+            total_count = len(collection)
+            new_elements = [
+                item for item in collection if not self.is_text_in_keywords(item)
+            ]
+            new_count = len(new_elements)
+            exists_count = total_count - new_count
             percent = round(exists_count * 100 / total_count)
 
             if (
@@ -727,8 +758,7 @@ class GetSimilarItems:
                         r,
                         f"exists_count={exists_count} total_count={total_count} percent={percent}",
                     )
-                    for r in res
-                    if not self.is_text_in_keywords(r)
+                    for r in new_elements
                 ]
 
         return None
@@ -741,14 +771,23 @@ class GetSimilarItems:
         soup = BeautifulSoup(html, features="html5lib")
         [ignore_tag.decompose() for ignore_tag in soup.find_all(['h1','h2','h3','h4','h5','style','script'])]       
 
+        ## First scrape texts from TD, TH
+        elements_td = soup.find_all(self.__is_valid_table_cell)
+        if len(elements_td) > 0:
+            elements_td = list(set(elements_td))
+            self.__grab_td(elements_td)
+
+        ## Drop table elements
+        [ignore_tag.decompose() for ignore_tag in soup.find_all("table")]
+
+        ## Then scrape not table elements
         elements = soup.find_all(self.__is_valid_tag)
 
-        elements=list(set(elements))        
-
-        self.found_items=[]
-        elements=self.__grab_td(elements) 
         if len(elements)>0:         
+            elements = list(set(elements))
             self.__grab_other(elements)
 
+        ### compare results ###
+        self.found_items = []
         self.__compare_results()
         return set(self.found_items)
